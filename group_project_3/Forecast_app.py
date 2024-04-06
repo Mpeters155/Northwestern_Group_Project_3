@@ -12,6 +12,13 @@ import streamlit as st # type: ignore
 from dataclasses import dataclass
 from typing import Any, List
 
+if "ticker_df" not in st.session_state:
+    st.session_state["ticker_df"] = "Data not created yet." #type: ignore
+
+if "pred_df" not in st.session_state:
+    st.session_state["pred_df"] = "Data not created yet." #type: ignore
+
+
 # Function to fetch data from yfinance
 drop_cols = ['Open', 'High', 'Low','Volume', 'Dividends', 'Stock Splits', 'Capital Gains']
 def get_history(fund_ticker):
@@ -113,6 +120,7 @@ def get_fund():
         st.sidebar.write("------------------------------")
 
 ### Streamlit Code ###
+
 # Streamlit App Heading
 st.markdown("# Mutual Fund Performance Predictor")
 st.markdown("## Choose A Mutual Fund to Predict it's future performance.")
@@ -124,6 +132,8 @@ st.sidebar.markdown("---------------------")
 
 # Number inout to set users initial investment
 # init_invst = st.number_input("Set your Initial Investment Amount.")
+
+
 
 # Streamlit Selectbox to choose a Mutual Fund
 mutual_fund = st.selectbox("Select a Mutual  Fund", funds)
@@ -144,45 +154,45 @@ st.sidebar.write("Minimum investment : ", fund_investment)
 st.sidebar.write("Holdings include : ", fund_holdings)
 st.sidebar.write("Inception Date : ", fund_date)
 
+
+
+
 # Streamlit Button to fetch fund historical data
-fetch_button = st.button("Fetch Historical Data")
-if fetch_button:
+if st.button("Fetch Historical Data"):
     ticker_df = get_history(fund_ticker)
     st.sidebar.write(ticker_df)
-
-
-#ticker_df = get_history(fund_ticker)
+    st.session_state["ticker_df"] = ticker_df
 
 # Button to display plot of historical data
 if st.button("Display Historical Data"):
-    with st.container():
-        st.write("Historical Prices for :", fund_ticker)
-        st.line_chart(ticker_df, x='Date', y="Close Price")
+    st.write("Historical Prices for :", fund_ticker)
+    st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
 
-# Creating a button to run a machine learning prediction for selected mutual fund
-run_button = st.button("Predict Mutual Fund Performance")
-if run_button:
+# Creating a button to run a machine learning prediction for selected mutual fund 
+if st.button("Predict Mutual Fund Performance"):
     with st.spinner("Running Prediction Model"):
-        pred_df = run_gpt(ticker_df)
+        pred_df = run_gpt(st.session_state["ticker_df"])
         st.sidebar.write(pred_df)
+        st.session_state["pred_df"] = pred_df
     st.success("Model Successfully Ran")
-#pred_df = run_gpt(ticker_df)
 
 # Button to display plot of forecasted data
 if st.button("Display Predicted Data"):
-    st.line_chart(pred_df, x='Date', y="Close Price")
+    st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
     
 # Setting Tabs to display line charts and dataframes
 tab1, tab2 = st.tabs(["Data", "Charts"])
 with tab1:
     st.markdown("# Data for Mutual Fund")
     st.write("Historical Data for : ", fund_name)
-    st.write(ticker_df)
+    st.write(st.session_state["ticker_df"])
     st.write("Predicted Data for : ", fund_name)
-    st.write(pred_df)
+    st.write(st.session_state["pred_df"])
 with tab2:
     st.markdown("# Charts for Mutual Fund")
     st.write("Historical Chart for : ", fund_name)
-    st.line_chart(ticker_df, x='Date', y="Close Price")
+    st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
     st.write("Predicted Chart for : ", fund_name)
-    st.line_chart(pred_df, x='Date', y="Close Price")
+    st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
+
+    showErrorDetails = False # type: ignore
