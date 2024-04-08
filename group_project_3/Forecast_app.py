@@ -13,10 +13,10 @@ from dataclasses import dataclass
 from typing import Any, List
 
 if "ticker_df" not in st.session_state:
-    st.session_state["ticker_df"] = "Data not created yet." #type: ignore
+    st.session_state["ticker_df"] = pd.DataFrame(columns=["Date", "Close Price"])
 
 if "pred_df" not in st.session_state:
-    st.session_state["pred_df"] = "Data not created yet." #type: ignore
+    st.session_state["pred_df"] = pd.DataFrame(columns=["Date", "Close Price"])
 
 
 # Function to fetch data from yfinance
