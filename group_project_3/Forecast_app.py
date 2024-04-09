@@ -11,12 +11,18 @@ import datetime
 import streamlit as st # type: ignore
 from dataclasses import dataclass
 from typing import Any, List
+from prophet import Prophet
+from prophet.plot import plot_plotly, plot_components_plotly
+ 
 
 if "ticker_df" not in st.session_state:
     st.session_state["ticker_df"] = pd.DataFrame(columns=["Date", "Close Price"])
 
 if "pred_df" not in st.session_state:
     st.session_state["pred_df"] = pd.DataFrame(columns=["Date", "Close Price"])
+
+if "forecast" not in st.session_state:
+    st.session_state["forecast"] = pd.DataFrame(columns=["Date", "Close Price"])
 
 
 # Function to fetch data from yfinance
@@ -45,8 +51,8 @@ def run_gpt(ticker_df):
     fcst_df = timegpt.forecast(df = ticker_df, 
                                time_col = 'Date', 
                                target_col = 'Close Price',  
-                               h=24,
-                               freq = "MS", 
+                               h=252*2,
+                               freq = "B",
                                fewshot_steps = 10, 
                                fewshot_loss = 'mse',
                                model='long-horizon'
@@ -54,8 +60,31 @@ def run_gpt(ticker_df):
     pred_df = pd.concat([ticker_df,fcst_df], axis = 0, join = 'outer')
     pred_df['Close Price'].fillna(pred_df['TimeGPT'], inplace= True)
     pred_df.reset_index(inplace = True)
-    pred_df.drop(columns=["index", "TimeGPT"], inplace = True)
+    pred_df.drop(columns=["index", 'TimeGPT'], inplace = True)
     return pred_df
+
+# Defining function to run the Prophet Model
+#df = pd.read_csv('./VTSAX.csv')
+def run_prophet(ticker_df):
+    prophet_df = ticker_df[['Date','Close Price']]
+    # Rename the features: These names are required for the model fitting
+    prophet_df = prophet_df.rename(columns = {'Date':'ds','Close Price':'y'})
+    #Create Prophet model
+    model = Prophet(daily_seasonality = True)
+    #Fit the model
+    model.fit(prophet_df)
+    #Specify the number of days in future
+    fut = model.make_future_dataframe(periods=252*2)
+    # predict the model
+    forecast = model.predict(fut)
+    #Clean Data for Visualization
+    forecast = forecast[['ds', 'yhat']]
+    forecast.rename(columns = {'ds':'Date', 'yhat':'Close Price'}, inplace=True)
+    #Return the forecast DataFrame
+    return forecast
+# Plotting the forecast
+#plot_plotly(forecast)
+
 
 # Database for Mutual Fund information
 mutual_fund_data = {
@@ -106,19 +135,6 @@ funds = ['Vanguard Total Stock Market Index Fund Admiral Shares',
          'Fidelity 500 Index Fund',
          'Vanguard Total Bond Market Index Fund Admiral Shares']
 
-def get_fund():
-    """Display Mutual Fund Information for user selection"""
-    db_list = list(mutual_fund_data.values())
-
-    for number in range(len(funds)):
-        st.sidebar.write("Fund Name: ", db_list[number][0])
-        st.sidebar.write("Fund Ticker: ", db_list[number][1])
-        st.sidebar.write("Assets under management: ", db_list[number][2])
-        st.sidebar.write("Minimum investment: ", db_list[number][3])
-        st.sidebar.write("Holdings include: ", db_list[number][4])
-        st.sidebar.write("Inception Date: ", db_list[number][5])
-        st.sidebar.write("------------------------------")
-
 ### Streamlit Code ###
 
 # Streamlit App Heading
@@ -129,11 +145,6 @@ st.text(" \n")
 # Streamlit sidebar Heading
 st.sidebar.markdown("# Mutual Fund Information")
 st.sidebar.markdown("---------------------")
-
-# Number inout to set users initial investment
-# init_invst = st.number_input("Set your Initial Investment Amount.")
-
-
 
 # Streamlit Selectbox to choose a Mutual Fund
 mutual_fund = st.selectbox("Select a Mutual  Fund", funds)
@@ -154,9 +165,6 @@ st.sidebar.write("Minimum investment : ", fund_investment)
 st.sidebar.write("Holdings include : ", fund_holdings)
 st.sidebar.write("Inception Date : ", fund_date)
 
-
-
-
 # Streamlit Button to fetch fund historical data
 if st.button("Fetch Historical Data"):
     ticker_df = get_history(fund_ticker)
@@ -169,30 +177,44 @@ if st.button("Display Historical Data"):
     st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
 
 # Creating a button to run a machine learning prediction for selected mutual fund 
-if st.button("Predict Mutual Fund Performance"):
-    with st.spinner("Running Prediction Model"):
+if st.button("Predict Mutual Fund Performance(using TimeGPT)"):
+    with st.spinner("Running TimeGPT Model"):
         pred_df = run_gpt(st.session_state["ticker_df"])
         st.sidebar.write(pred_df)
         st.session_state["pred_df"] = pred_df
     st.success("Model Successfully Ran")
 
-# Button to display plot of forecasted data
-if st.button("Display Predicted Data"):
+# Button to display plot of the TimeGPT data
+if st.button("Display TimeGPT Data"):
     st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
-    
+
+#Button to run the Prophet model for selected Mutual Fund
+if st.button("Predict Mutual Fund Performance(using Prophet)"):
+    with st.spinner("Running Prophet Model"):
+        forecast = run_prophet(st.session_state["ticker_df"])
+        st.sidebar.write(forecast)
+        st.session_state["forecast"] = forecast
+    st.success("Model Successfully Ran")
+
+# Button to display plot of the Prophet data
+if st.button("Display Prophet Data"):
+    st.line_chart(st.session_state["forecast"], x='Date', y="Close Price")
+
 # Setting Tabs to display line charts and dataframes
 tab1, tab2 = st.tabs(["Data", "Charts"])
 with tab1:
     st.markdown("# Data for Mutual Fund")
     st.write("Historical Data for : ", fund_name)
     st.write(st.session_state["ticker_df"])
-    st.write("Predicted Data for : ", fund_name)
+    st.write("TimeGPT Data for : ", fund_name)
     st.write(st.session_state["pred_df"])
+    st.write("Prophet Data for : ", fund_name)
+    st.write(st.session_state["forecast"])
 with tab2:
     st.markdown("# Charts for Mutual Fund")
     st.write("Historical Chart for : ", fund_name)
     st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
-    st.write("Predicted Chart for : ", fund_name)
+    st.write("TimeGPT Chart for : ", fund_name)
     st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
-
-    showErrorDetails = False # type: ignore
+    st.write("Prophet Chart for : ", fund_name)
+    st.line_chart(st.session_state["forecast"], x='Date', y="Close Price")
