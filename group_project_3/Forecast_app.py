@@ -139,7 +139,7 @@ funds = ['Vanguard Total Stock Market Index Fund Admiral Shares',
 
 # Streamlit App Heading
 st.markdown("# Mutual Fund Performance Predictor")
-st.markdown("## Choose A Mutual Fund to Predict it's future performance.")
+st.markdown("### Step 1 - Choose A Mutual Fund to Predict it's future performance.")
 st.text(" \n")
 
 # Streamlit sidebar Heading
@@ -165,16 +165,17 @@ st.sidebar.write("Minimum investment : ", fund_investment)
 st.sidebar.write("Holdings include : ", fund_holdings)
 st.sidebar.write("Inception Date : ", fund_date)
 
+st.markdown("### Step 2 - Press Fetch Historical Data Button to generate needed data.")
+
 # Streamlit Button to fetch fund historical data
 if st.button("Fetch Historical Data"):
     ticker_df = get_history(fund_ticker)
     st.sidebar.write(ticker_df)
     st.session_state["ticker_df"] = ticker_df
 
-# Button to display plot of historical data
-if st.button("Display Historical Data"):
-    st.write("Historical Prices for :", fund_ticker)
-    st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
+
+
+st.markdown("### Step 3 - Press Predict Mutual Fund Performance buttons")
 
 # Creating a button to run a machine learning prediction for selected mutual fund 
 if st.button("Predict Mutual Fund Performance(using TimeGPT)"):
@@ -184,10 +185,6 @@ if st.button("Predict Mutual Fund Performance(using TimeGPT)"):
         st.session_state["pred_df"] = pred_df
     st.success("Model Successfully Ran")
 
-# Button to display plot of the TimeGPT data
-if st.button("Display TimeGPT Data"):
-    st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
-
 #Button to run the Prophet model for selected Mutual Fund
 if st.button("Predict Mutual Fund Performance(using Prophet)"):
     with st.spinner("Running Prophet Model"):
@@ -196,9 +193,22 @@ if st.button("Predict Mutual Fund Performance(using Prophet)"):
         st.session_state["forecast"] = forecast
     st.success("Model Successfully Ran")
 
+st.write("Optional - Display a line chart of generated data.")
+
+# Button to display plot of historical data
+if st.button("Display Historical Data"):
+    st.write("Historical Prices for :", fund_ticker)
+    st.line_chart(st.session_state["ticker_df"], x='Date', y="Close Price")
+
+# Button to display plot of the TimeGPT data
+if st.button("Display TimeGPT Data"):
+    st.line_chart(st.session_state["pred_df"], x='Date', y="Close Price")
+
 # Button to display plot of the Prophet data
 if st.button("Display Prophet Data"):
     st.line_chart(st.session_state["forecast"], x='Date', y="Close Price")
+
+st.write("Tabs to view historical data alongside predicted data")
 
 # Setting Tabs to display line charts and dataframes
 tab1, tab2 = st.tabs(["Data", "Charts"])
